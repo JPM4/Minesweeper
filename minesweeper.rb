@@ -8,6 +8,7 @@ class Game
   end
 
   def play
+    @start_time = Time.now
     puts "Welcome to Minesweeper!"
     puts "Type 'r' to reveal or 'f' to flag a spot"
     puts "followed by coordinates (row, column)."
@@ -20,13 +21,18 @@ class Game
       update_tile(input)
     end
 
+    @end_time = Time.now
     if won?
-      puts "You win!"
+      puts "You win! It took you #{total_time} seconds"
     elsif lost?
-      puts "You lose!"
+      puts "You lose! It took you #{total_time} seconds"
     end
 
     display
+  end
+
+  def total_time
+    (@end_time - @start_time).to_i
   end
 
   def get_input
