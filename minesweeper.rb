@@ -4,6 +4,7 @@ class Game
 
   def initialize
     @board = Board.new
+    @lost = false
   end
 
   def play
@@ -18,6 +19,13 @@ class Game
       update_tile(input)
     end
 
+    if won?
+      puts "You win!"
+    elsif lost?
+      puts "You lose!"
+    end
+
+    display
   end
 
   def get_input
@@ -25,7 +33,7 @@ class Game
     user_choice = ''
 
     until user_choice.match(valid_input)
-      puts "Type input ('r 0,8'):"
+      print "Type input ('r 0,8'): "
       user_choice = gets.chomp
     end
 
@@ -37,15 +45,18 @@ class Game
   def update_tile(input)
     action, row, col = input
     current_tile = @board.board[row.to_i][col.to_i]
-    p current_tile
+
     if current_tile.flagged? && action == 'r'
       return
     end
 
-    current_tile.set_action(action)
-
+    if current_tile.bombed? && action == 'r'
+      @board.reveal_all_bombs
+      @lost = true
+    else
+      current_tile.set_action(action)
+    end
   end
-
 
   def display
     puts render
@@ -76,19 +87,32 @@ class Game
   end
 
   def lost?
-    false
+    @lost
   end
 
   def won?
-    false
+    number_of_flags == @board.num_bombs
+  end
+
+  def number_of_flags
+    flags = 0
+    @board.board.each do |row|
+      row.each do |col|
+        flags += 1 if col.flagged?
+      end
+    end
+
+    flags
   end
 
 end
 
 class Tile
-  POSSIBLE_NEIGHBORS = [[0,1],[0,-1],[1,0],[1,-1],[1,1],[-1,0],[-1,-1],[-1,1]]
+  POSSIBLE_NEIGHBORS = [[0, 1], [0, -1], [1, 0], [1, -1],
+                        [1, 1], [-1, 0], [-1, -1], [-1, 1]]
 
-  attr_reader :display, :position, :has_bomb
+  attr_reader :position, :has_bomb
+  attr_accessor :display
 
   def initialize(board, position, has_bomb)
     @board = board
@@ -159,7 +183,6 @@ class Tile
 
   def set_action(action)
     if action == 'r'
-      raise "You lost!" if bombed?
       reveal
     else
       @flag ? reset_flag : set_flag
@@ -176,9 +199,9 @@ class Tile
 end
 
 class Board
-  attr_reader :board, :size
+  attr_reader :board, :size, :num_bombs
 
-  def initialize(size=9, num_bombs=12)
+  def initialize(size=9, num_bombs=10)
     @num_bombs = num_bombs
     @size = size
     build_board(size, num_bombs)
@@ -208,5 +231,11 @@ class Board
     bomb_pos
   end
 
-
+  def reveal_all_bombs
+    @board.each do |row|
+      row.each do |tile|
+        tile.display = "B" if tile.has_bomb
+      end
+    end
+  end
 end
