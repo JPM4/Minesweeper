@@ -1,7 +1,7 @@
 # http://notes.vveleva.com/
+require 'yaml'
 
 class Game
-
   def initialize
     @board = Board.new
     @lost = false
@@ -12,6 +12,7 @@ class Game
     puts "Type 'r' to reveal or 'f' to flag a spot"
     puts "followed by coordinates (row, column)."
     puts "Example: 'f 3,2' will flag coordinate [3,2]"
+    puts "Type 'save' at any time to save your game."
 
     until over?
       display
@@ -32,14 +33,17 @@ class Game
     valid_input = /\A([r|f])\s([0-8]),([0-8])\z/
     user_choice = ''
 
-    until user_choice.match(valid_input)
+    until user_choice.match(valid_input) || user_choice.downcase == 'save'
       print "Type input ('r 0,8'): "
       user_choice = gets.chomp
     end
 
-    action, row, col = user_choice.scan(valid_input)[0]
-
-    [action, row, col]
+    if user_choice.downcase == 'save'
+      save
+    else
+      action, row, col = user_choice.scan(valid_input)[0]
+      [action, row, col]
+    end
   end
 
   def update_tile(input)
@@ -91,18 +95,41 @@ class Game
   end
 
   def won?
-    number_of_flags == @board.num_bombs
+    correct_flags == @board.num_bombs && incorrect_flags == 0
   end
 
-  def number_of_flags
+  def correct_flags
     flags = 0
     @board.board.each do |row|
       row.each do |col|
-        flags += 1 if col.flagged?
+        flags += 1 if col.flagged? && col.has_bomb
       end
     end
 
     flags
+  end
+
+  def incorrect_flags
+    flags = 0
+    @board.board.each do |row|
+      row.each do |col|
+        flags +=1 if col.flagged? && !col.has_bomb
+      end
+    end
+
+    flags
+  end
+
+  def save
+    File.open("minesweeper.yml", "w") do |f|
+      f.puts self.to_yaml
+    end
+
+    exit
+  end
+
+  def self.load
+    YAML.load_file("minesweeper.yml")
   end
 
 end
@@ -138,6 +165,20 @@ class Tile
   def revealed?
     @display != "*"
   end
+
+  # def display
+  #   if revealed?
+  #     if neighbor_bomb_count > 0
+  #       neighbor_bomb_count
+  #     else
+  #       "_"
+  #     end
+  #   elsif flagged?
+  #     "F"
+  #   else
+  #     "*"
+  #   end
+  # end
 
   def neighbors
     neighbors = []
@@ -180,6 +221,10 @@ class Tile
     @flag = false
     @display = '*'
   end
+  #
+  # def toggle_flag
+  #   @flag = !@flag
+  # end
 
   def set_action(action)
     if action == 'r'
@@ -213,7 +258,7 @@ class Board
     @board.each_with_index do |row, idx|
       row.each_with_index do |column, idx2|
         current_pos = [idx, idx2]
-        set_bomb = (bomb_pos.include?(current_pos) ? true : false)
+        set_bomb = (bomb_pos.include?(current_pos))
         @board[idx][idx2] = Tile.new(@board, current_pos, set_bomb)
       end
     end
